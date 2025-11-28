@@ -4,6 +4,10 @@
 
 > 🤖 **本项目由 Google Gemini AI 编程助手实现。**
 
+## 📸 预览
+
+![Pushpin Screenshot](screenshot.png)
+
 ## ✨ 主要特性
 
 - **全局快捷键**: 使用 `⌘ + ⇧ + V` (可自定义) 随时随地唤起。
