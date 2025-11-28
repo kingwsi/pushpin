@@ -33,6 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindow: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.applicationIconImage = NSImage(named: "AppIcon")
         // Set activation policy first
         NSApp.setActivationPolicy(.accessory)
         
@@ -56,6 +57,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // Make clicks activate and pass through in one click
                 window.collectionBehavior.insert(.canJoinAllSpaces)
                 window.level = .floating
+                
+                // Configure vibrancy effect
+                window.isOpaque = false
+                window.backgroundColor = .clear
+                window.titlebarAppearsTransparent = true
+                
                 print("Main window stored and configured: \(self.mainWindow != nil)")
             } else {
                 print("Warning: Could not find main window")
@@ -74,6 +81,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 window.acceptsMouseMovedEvents = true
                 window.collectionBehavior.insert(.canJoinAllSpaces)
                 window.level = .floating
+                
+                // Configure vibrancy effect
+                window.isOpaque = false
+                window.backgroundColor = .clear
+                window.titlebarAppearsTransparent = true
+                
                 print("Window found and stored")
             }
         }

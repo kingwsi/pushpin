@@ -32,9 +32,10 @@ struct ContentView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
-        .background(Material.regular)
+        .background(Material.ultraThinMaterial)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { isPinned.toggle() }) {
@@ -88,7 +89,7 @@ struct ClipboardItemRow: View {
             .padding(.horizontal, 8)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
+                    .fill(isHovered ? Color.white.opacity(0.15) : Color.white.opacity(0.03))
             )
             .contentShape(Rectangle())
         }

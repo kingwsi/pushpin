@@ -10,19 +10,42 @@ struct SettingsView: View {
             Text("Settings")
                 .font(.headline)
             
-            Form {
-                Section("Global Hotkey") {
+            VStack(alignment: .leading, spacing: 15) {
+                // Global Hotkey
+                HStack {
+                    Text("Global Hotkey:")
+                        .frame(width: 120, alignment: .leading)
                     KeyRecorder(hotkeyManager: hotkeyManager)
                 }
+                
+                Divider()
+                
+                // Source Code Link
+                HStack {
+                    Text("Source Code:")
+                        .frame(width: 120, alignment: .leading)
+                    Button(action: {
+                        if let url = URL(string: "https://github.com/kingwsi/pushpin") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Text("GitHub Repository")
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
             }
-            .formStyle(.grouped)
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
             
             Button("Done") {
                 dismiss()
             }
         }
         .padding()
-        .frame(width: 350, height: 250)
+        .frame(width: 400, height: 220)
     }
 }
 
@@ -32,19 +55,15 @@ struct KeyRecorder: View {
     @State private var monitor: Any?
     
     var body: some View {
-        HStack {
-            Text("Shortcut:")
-            Spacer()
-            Button(action: {
-                if isRecording {
-                    stopRecording()
-                } else {
-                    startRecording()
-                }
-            }) {
-                Text(displayText)
-                    .frame(minWidth: 100)
+        Button(action: {
+            if isRecording {
+                stopRecording()
+            } else {
+                startRecording()
             }
+        }) {
+            Text(displayText)
+                .frame(minWidth: 100)
         }
     }
     
