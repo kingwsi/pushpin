@@ -21,30 +21,28 @@
 
 ## 📦 构建 macOS 应用
 
-推荐使用 Xcode 构建 `.app` 文件，这是最简单且最可靠的方式。
+有两种主要方式来构建 `Pushpin.app`：
 
-### 使用 Xcode (推荐)
+### 推荐方式：使用命令行脚本
 
-1.  在访达 (Finder) 中，右键点击 `Package.swift` 文件，选择 **打开方式 > Xcode**。
-2.  等待 Xcode 解析并加载项目。
-3.  从菜单栏选择 **Product > Archive**。
-4.  构建完成后，Xcode 会打开 "Organizer" 窗口。
-5.  在 "Organizer" 中，选中刚刚创建的归档，点击 **Distribute App**。
-6.  选择 **Copy App**，然后指定一个位置保存 `Pushpin.app` 文件。
-7.  现在你可以将 `Pushpin.app` 移动到 `/Applications` 文件夹中使用。
+我们提供了一个简单的脚本来自动化构建 `Pushpin.app` 应用程序包。
 
-### 使用命令行 (开发者)
+1.  打开终端，导航到项目根目录。
+2.  运行以下命令，赋予脚本执行权限并执行它：
+    ```bash
+    chmod +x build.sh
+    ./build.sh
+    ```
+3.  脚本成功运行后，您会在项目根目录找到 `Pushpin.app`。您可以将其拖到 `/Applications` 文件夹中使用。
 
-如果你希望快速构建和运行：
+### 可选方式：使用 Xcode
 
-```bash
-# 构建
-swift build -c release
+如果您需要进行更高级的调试、开发或签名（例如用于 App Store Connect），可以使用 Xcode。
 
-# 运行 (可执行文件位于 .build/release/Pushpin)
-swift run
-```
-**注意**: 从命令行运行时，你可能需要手动授予 **终端 (Terminal)** 或 **iTerm2** "辅助功能" 权限才能使粘贴生效。
+1.  在访达 (Finder) 中，双击 `Package.swift` 文件，选择用 Xcode 打开。
+2.  在 Xcode 中，确保顶部工具栏的 Scheme 选择器显示为 `Pushpin` 目标，并且设备选择为 `My Mac`。
+3.  选择菜单栏 **Product > Build** 来构建项目。
+4.  如果需要完整的 `.app` 包并进行归档分发，您可能需要在一个新的 Xcode App 项目中引用此 Swift Package，并从该 App 项目进行归档。
 
 ## ⚙️ 系统要求
 
