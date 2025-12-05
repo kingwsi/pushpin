@@ -1,10 +1,43 @@
 import SwiftUI
 import AppKit
 
+enum ClipboardItemType: String, Codable {
+    case text
+    case image
+}
+
 struct ClipboardItem: Identifiable, Hashable, Codable {
     var id = UUID()
-    let content: String
+    let type: ClipboardItemType
+    let content: String // For text items, this is the text; for images, this is empty
+    let imageData: Data? // PNG data for image items
     let date: Date
+    
+    // Computed property to get NSImage from imageData
+    var image: NSImage? {
+        guard type == .image, let data = imageData else { return nil }
+        return NSImage(data: data)
+    }
+    
+    // Helper initializer for text items
+    init(text: String, date: Date) {
+        self.id = UUID()
+        self.type = .text
+        self.content = text
+        self.imageData = nil
+        self.date = date
+    }
+    
+    // Helper initializer for image items
+    init(image: NSImage, date: Date) {
+        self.id = UUID()
+        self.type = .image
+        self.content = ""
+        self.imageData = image.tiffRepresentation.flatMap { 
+            NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
+        }
+        self.date = date
+    }
 }
 
 @Observable
@@ -16,6 +49,12 @@ class ClipboardManager {
     }
     private var lastChangeCount: Int
     private var timer: Timer?
+    
+    // Maximum number of items to keep in history (configurable)
+    var maxHistoryCount: Int {
+        let stored = UserDefaults.standard.integer(forKey: "MaxHistoryCount")
+        return stored > 0 ? stored : 50 // Default to 50 if not set
+    }
     
     init() {
         self.lastChangeCount = NSPasteboard.general.changeCount
@@ -34,22 +73,50 @@ class ClipboardManager {
         if pasteboard.changeCount != lastChangeCount {
             lastChangeCount = pasteboard.changeCount
             
-            if let newString = pasteboard.string(forType: .string) {
+            // Check for image first (higher priority)
+            if let image = NSImage(pasteboard: pasteboard) {
                 // Avoid duplicates at the top
-                if let first = history.first, first.content == newString {
+                if let first = history.first, first.type == .image, 
+                   let firstImageData = first.imageData,
+                   let newImageData = image.tiffRepresentation.flatMap({ 
+                       NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
+                   }),
+                   firstImageData == newImageData {
                     return
                 }
                 
-                let newItem = ClipboardItem(content: newString, date: Date())
-                // Insert at the beginning
+                let newItem = ClipboardItem(image: image, date: Date())
                 history.insert(newItem, at: 0)
                 
-                // Limit history size
-                if history.count > 50 {
-                    history.removeLast()
+                // Limit history size based on user setting
+                trimHistoryIfNeeded()
+            }
+            // Then check for text
+            else if let newString = pasteboard.string(forType: .string) {
+                // Avoid duplicates at the top
+                if let first = history.first, first.type == .text, first.content == newString {
+                    return
                 }
+                
+                let newItem = ClipboardItem(text: newString, date: Date())
+                history.insert(newItem, at: 0)
+                
+                // Limit history size based on user setting
+                trimHistoryIfNeeded()
             }
         }
+    }
+    
+    private func trimHistoryIfNeeded() {
+        let maxCount = maxHistoryCount
+        if history.count > maxCount {
+            history.removeSubrange(maxCount...)
+        }
+    }
+    
+    // Public method to trim history (called from settings when max count changes)
+    func trimHistory() {
+        trimHistoryIfNeeded()
     }
     
     func clearHistory() {

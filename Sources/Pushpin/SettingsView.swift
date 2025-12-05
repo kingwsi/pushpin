@@ -3,7 +3,10 @@ import Carbon
 
 struct SettingsView: View {
     @Environment(HotkeyManager.self) private var hotkeyManager
+    @Environment(ClipboardManager.self) private var clipboardManager
     @Environment(\.dismiss) private var dismiss
+    
+    @AppStorage("MaxHistoryCount") private var maxHistoryCount = 50
     
     var body: some View {
         VStack(spacing: 20) {
@@ -16,6 +19,22 @@ struct SettingsView: View {
                     Text("Global Hotkey:")
                         .frame(width: 120, alignment: .leading)
                     KeyRecorder(hotkeyManager: hotkeyManager)
+                }
+                
+                Divider()
+                
+                // Max History Count
+                HStack {
+                    Text("Max History:")
+                        .frame(width: 120, alignment: .leading)
+                    Stepper(value: $maxHistoryCount, in: 10...200, step: 10) {
+                        Text("\(maxHistoryCount) items")
+                            .frame(minWidth: 80, alignment: .leading)
+                    }
+                    .onChange(of: maxHistoryCount) { _, newValue in
+                        // Trim history if new limit is lower than current count
+                        clipboardManager.trimHistory()
+                    }
                 }
                 
                 Divider()
@@ -45,7 +64,7 @@ struct SettingsView: View {
             }
         }
         .padding()
-        .frame(width: 400, height: 220)
+        .frame(width: 450, height: 280)
     }
 }
 

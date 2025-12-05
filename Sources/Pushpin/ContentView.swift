@@ -16,7 +16,13 @@ struct ContentView: View {
             return clipboardManager.history
         } else {
             return clipboardManager.history.filter { item in
-                item.content.localizedCaseInsensitiveContains(searchText)
+                switch item.type {
+                case .text:
+                    return item.content.localizedCaseInsensitiveContains(searchText)
+                case .image:
+                    // Allow searching for images by typing "image"
+                    return "image".localizedCaseInsensitiveContains(searchText)
+                }
             }
         }
     }
@@ -85,7 +91,7 @@ struct ContentView: View {
                                         hoveredItemId = isHovered ? item.id : nil
                                     },
                                     onTap: {
-                                        pasteManager.paste(content: item.content)
+                                        pasteManager.paste(item: item)
                                     }
                                 )
                                 .id(item.id)
@@ -166,22 +172,43 @@ struct ClipboardItemRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Icon indicator
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.primary.opacity(0.4))
-                    .frame(width: 24, height: 24)
-                
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.content)
-                        .lineLimit(2)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
+                // Content based on type
+                switch item.type {
+                case .text:
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.content)
+                            .lineLimit(2)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                        
+                        Text(item.date.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.primary.opacity(0.45))
+                    }
                     
-                    Text(item.date.formatted(date: .omitted, time: .shortened))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.primary.opacity(0.45))
+                case .image:
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let image = item.image {
+                            Image(nsImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                                )
+                        } else {
+                            Text("[Image]")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.primary.opacity(0.6))
+                        }
+                        
+                        Text(item.date.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.primary.opacity(0.45))
+                    }
                 }
                 
                 Spacer()
@@ -220,3 +247,4 @@ struct ClipboardItemRow: View {
         }
     }
 }
+

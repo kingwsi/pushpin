@@ -18,6 +18,29 @@ class PasteManager {
         }
     }
     
+    func paste(item: ClipboardItem) {
+        // 1. Copy content to pasteboard based on type
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        switch item.type {
+        case .text:
+            pasteboard.setString(item.content, forType: .string)
+        case .image:
+            if let image = item.image {
+                pasteboard.writeObjects([image])
+            }
+        }
+        
+        // 2. Hide the app
+        NSApp.hide(nil)
+        
+        // 3. Simulate Cmd+V
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.simulatePaste()
+        }
+    }
+    
     private func simulatePaste() {
         let source = CGEventSource(stateID: .hidSystemState)
         
@@ -45,3 +68,4 @@ class PasteManager {
         cmdUp?.post(tap: .cghidEventTap)
     }
 }
+
