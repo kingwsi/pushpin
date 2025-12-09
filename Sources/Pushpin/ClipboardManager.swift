@@ -13,6 +13,15 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
     let imageData: Data? // PNG data for image items
     let date: Date
     
+    // Hashable conformance for array filtering/diffing
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
+        lhs.id == rhs.id
+    }
+    
     // Computed property to get NSImage from imageData
     var image: NSImage? {
         guard type == .image, let data = imageData else { return nil }
@@ -121,6 +130,10 @@ class ClipboardManager {
     
     func clearHistory() {
         history.removeAll()
+    }
+    
+    func deleteItem(_ item: ClipboardItem) {
+        history.removeAll { $0.id == item.id }
     }
     
     private func saveHistory() {

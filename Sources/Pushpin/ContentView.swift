@@ -114,6 +114,14 @@ struct ContentView: View {
                             }
                         }
                     }
+                    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                        // Scroll to the top when the window becomes active/key
+                        if let firstItem = filteredHistory.first {
+                            // Using a slight delay can be helpful if the view needs to layout first,
+                            // but usually direct call works if view is already loaded.
+                            proxy.scrollTo(firstItem.id, anchor: .top)
+                        }
+                    }
                 }
             }
         }
@@ -169,77 +177,90 @@ struct ClipboardItemRow: View {
     let onHover: (Bool) -> Void
     let onTap: () -> Void
     
+    @State private var isButtonHovered = false
+    
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Content based on type
-                switch item.type {
-                case .text:
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.content)
-                            .lineLimit(2)
+        HStack(spacing: 12) {
+            // Content based on type
+            switch item.type {
+            case .text:
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(item.content)
+                        .lineLimit(2)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.leading)
+                    
+                    Text(item.date.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.primary.opacity(0.45))
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { onTap() }
+                
+            case .image:
+                VStack(alignment: .leading, spacing: 6) {
+                    if let image = item.image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 80, height: 80)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                            )
+                    } else {
+                        Text("[Image]")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.leading)
-                        
-                        Text(item.date.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.primary.opacity(0.45))
+                            .foregroundColor(.primary.opacity(0.6))
                     }
                     
-                case .image:
-                    VStack(alignment: .leading, spacing: 6) {
-                        if let image = item.image {
-                            Image(nsImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 80, height: 80)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                                )
-                        } else {
-                            Text("[Image]")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.primary.opacity(0.6))
-                        }
-                        
-                        Text(item.date.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.primary.opacity(0.45))
-                    }
+                    Text(item.date.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.primary.opacity(0.45))
                 }
-                
-                Spacer()
-                
-                // Hover indicator - always present but opacity controlled
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary)
-                    .opacity(isHovered ? 0.6 : 0)
-                    .scaleEffect(isHovered ? 1 : 0.8)
-                    .frame(width: 20)
+                .contentShape(Rectangle())
+                .onTapGesture { onTap() }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(isHovered ? 
-                          Color.primary.opacity(0.12) : 
-                          Color.primary.opacity(0.06))
-                    .shadow(
-                        color: isHovered ? 
-                            Color.black.opacity(0.15) : 
-                            Color.black.opacity(0.08),
-                        radius: isHovered ? 4 : 2,
-                        x: 0,
-                        y: isHovered ? 2 : 1
-                    )
-            )
-            .contentShape(Rectangle())
+            
+            Spacer()
+            
+            // Paste button - visible on hover
+            Button(action: onTap) {
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 16))
+                    .foregroundStyle(isButtonHovered ? Color.secondary : Color.secondary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .opacity(isHovered ? 1 : 0)
+            .scaleEffect(isButtonHovered ? 1.1 : 1.0)
+            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: isButtonHovered)
+            .frame(width: 24, height: 24)
+            .help("Paste item")
+            .onHover { hovering in
+                isButtonHovered = hovering
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isHovered ? 
+                      Color.primary.opacity(0.12) : 
+                      Color.primary.opacity(0.06))
+                .shadow(
+                    color: isHovered ? 
+                        Color.black.opacity(0.15) : 
+                        Color.black.opacity(0.08),
+                    radius: isHovered ? 4 : 2,
+                    x: 0,
+                    y: isHovered ? 2 : 1
+                )
+        )
+        // Make the whole background tappable for paste
+        .onTapGesture { onTap() }
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 onHover(hovering)
