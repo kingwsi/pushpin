@@ -82,6 +82,11 @@ class ClipboardManager {
         if pasteboard.changeCount != lastChangeCount {
             lastChangeCount = pasteboard.changeCount
             
+            // Ignore files (we only want text and images/screenshots)
+            if let types = pasteboard.types, types.contains(.fileURL) {
+                return
+            }
+            
             // Check for image first (higher priority)
             if let image = NSImage(pasteboard: pasteboard) {
                 // Avoid duplicates at the top

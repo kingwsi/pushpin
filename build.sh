@@ -77,7 +77,11 @@ if [ -d "$ASSETS_PATH" ]; then
       --output-partial-info-plist /dev/null
 fi
 
-echo "--- Performing Ad-hoc Code Signing ---"
+echo "--- Performing Ad-hoc Code Signing with Entitlements ---"
+# Ad-hoc sign the executable with entitlements. This is crucial for hardened runtime.
+codesign --force --sign - --entitlements "$PROJECT_DIR/Pushpin.entitlements" --options runtime "$APP_BUNDLE_PATH/Contents/MacOS/$APP_NAME"
+
+# Sign the entire app bundle
 codesign --force --deep --sign - "$APP_BUNDLE_PATH"
 
 echo ""

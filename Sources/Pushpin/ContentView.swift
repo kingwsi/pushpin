@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var showClearConfirmation = false
     @State private var hoveredItemId: UUID?
     @State private var searchText = ""
+    @State private var selectedItemId: UUID?
     
     // Filtered history based on search text
     private var filteredHistory: [ClipboardItem] {
@@ -87,6 +88,7 @@ struct ContentView: View {
                                 ClipboardItemRow(
                                     item: item,
                                     isHovered: hoveredItemId == item.id,
+                                    isSelected: selectedItemId == item.id,
                                     onHover: { isHovered in
                                         hoveredItemId = isHovered ? item.id : nil
                                     },
@@ -100,32 +102,57 @@ struct ContentView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                     }
+                    .scrollPosition(id: $selectedItemId, anchor: .center) // iOS 17/macOS 14+ API for simpler scrolling
                     .onAppear {
                         // Scroll to the first item when the view appears
                         if let firstItem = filteredHistory.first {
-                            proxy.scrollTo(firstItem.id, anchor: .top)
+                            selectedItemId = firstItem.id
                         }
                     }
                     .onChange(of: searchText) { _, _ in
-                        // Scroll to top when search text changes
+                        // Reset selection when search changes
                         if let firstItem = filteredHistory.first {
-                            withAnimation {
-                                proxy.scrollTo(firstItem.id, anchor: .top)
-                            }
+                            selectedItemId = firstItem.id
+                        } else {
+                            selectedItemId = nil
                         }
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                        // Scroll to the top when the window becomes active/key
+                         // Always select the first item when window becomes active
                         if let firstItem = filteredHistory.first {
-                            // Using a slight delay can be helpful if the view needs to layout first,
-                            // but usually direct call works if view is already loaded.
-                            proxy.scrollTo(firstItem.id, anchor: .top)
+                            selectedItemId = firstItem.id
                         }
                     }
                 }
             }
         }
         .background(Material.thinMaterial)
+        .onKeyPress(.escape) {
+            if !searchText.isEmpty {
+                searchText = ""
+                return .handled
+            }
+            if let window = NSApp.windows.first {
+                window.orderOut(nil)
+            }
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            moveSelection(direction: -1)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            moveSelection(direction: 1)
+            return .handled
+        }
+        .onKeyPress(.return) {
+            if let selectedId = selectedItemId, 
+               let item = clipboardManager.history.first(where: { $0.id == selectedId }) {
+                pasteManager.paste(item: item)
+                return .handled
+            }
+            return .ignored
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: { showClearConfirmation = true }) {
@@ -169,11 +196,29 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func moveSelection(direction: Int) {
+        let history = filteredHistory
+        guard !history.isEmpty else { return }
+        
+        // If nothing selected, select first
+        guard let currentId = selectedItemId, 
+              let currentIndex = history.firstIndex(where: { $0.id == currentId }) else {
+            selectedItemId = history.first?.id
+            return
+        }
+        
+        let newIndex = currentIndex + direction
+        if newIndex >= 0 && newIndex < history.count {
+            selectedItemId = history[newIndex].id
+        }
+    }
 }
 
 struct ClipboardItemRow: View {
     let item: ClipboardItem
     let isHovered: Bool
+    let isSelected: Bool
     let onHover: (Bool) -> Void
     let onTap: () -> Void
     
@@ -226,7 +271,7 @@ struct ClipboardItemRow: View {
             
             Spacer()
             
-            // Paste button - visible on hover
+            // Paste button - visible on hover or selection
             Button(action: onTap) {
                 Image(systemName: "doc.on.clipboard")
                     .font(.system(size: 16))
@@ -234,7 +279,7 @@ struct ClipboardItemRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .opacity(isHovered ? 1 : 0)
+            .opacity(isHovered || isSelected ? 1 : 0)
             .scaleEffect(isButtonHovered ? 1.1 : 1.0)
             .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: isButtonHovered)
             .frame(width: 24, height: 24)
@@ -247,16 +292,15 @@ struct ClipboardItemRow: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isHovered ? 
-                      Color.primary.opacity(0.12) : 
-                      Color.primary.opacity(0.06))
+                .fill(isSelected ? Color.accentColor.opacity(0.15) :
+                      (isHovered ? Color.primary.opacity(0.08) : Color.primary.opacity(0.06)))
                 .shadow(
-                    color: isHovered ? 
-                        Color.black.opacity(0.15) : 
+                    color: (isHovered || isSelected) ?
+                        Color.black.opacity(0.15) :
                         Color.black.opacity(0.08),
-                    radius: isHovered ? 4 : 2,
+                    radius: (isHovered || isSelected) ? 4 : 2,
                     x: 0,
-                    y: isHovered ? 2 : 1
+                    y: (isHovered || isSelected) ? 2 : 1
                 )
         )
         // Make the whole background tappable for paste
@@ -266,6 +310,10 @@ struct ClipboardItemRow: View {
                 onHover(hovering)
             }
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.accentColor.opacity(isSelected ? 0.5 : 0), lineWidth: 1)
+        )
     }
 }
 
