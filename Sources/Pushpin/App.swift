@@ -25,6 +25,21 @@ struct PushpinApp: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
         }
+        
+        WindowGroup("JSON Editor", for: UUID.self) { $itemId in
+            if let id = itemId,
+               let index = clipboardManager.history.firstIndex(where: { $0.id == id }) {
+                JsonEditorView(text: Binding(
+                    get: { clipboardManager.history[index].content },
+                    set: { clipboardManager.history[index].content = $0 }
+                ))
+                .navigationTitle("JSON Editor")
+            } else {
+                ContentUnavailableView("Item Not Found", systemImage: "questionmark.folder")
+            }
+        }
+        .environment(clipboardManager)
+        .defaultSize(width: 600, height: 500)
     }
 }
 

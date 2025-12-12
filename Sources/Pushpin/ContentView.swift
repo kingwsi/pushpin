@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var hoveredItemId: UUID?
     @State private var searchText = ""
     @State private var selectedItemId: UUID?
+    @Environment(\.openWindow) private var openWindow
     
     // Filtered history based on search text
     private var filteredHistory: [ClipboardItem] {
@@ -94,6 +95,15 @@ struct ContentView: View {
                                     },
                                     onTap: {
                                         pasteManager.paste(item: item)
+                                    },
+                                    onJsonClick: {
+                                        openWindow(value: item.id)
+                                        // Hide the main panel (identified by being floating)
+                                        NSApp.windows.forEach { window in
+                                            if window.level == .floating {
+                                                window.orderOut(nil)
+                                            }
+                                        }
                                     }
                                 )
                                 .id(item.id)
@@ -177,8 +187,9 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView()
+             SettingsView()
         }
+
         .confirmationDialog("Clear All History", isPresented: $showClearConfirmation) {
             Button("Clear All", role: .destructive) {
                 clipboardManager.clearHistory()
@@ -221,6 +232,7 @@ struct ClipboardItemRow: View {
     let isSelected: Bool
     let onHover: (Bool) -> Void
     let onTap: () -> Void
+    let onJsonClick: () -> Void
     
     @State private var isButtonHovered = false
     
@@ -270,6 +282,21 @@ struct ClipboardItemRow: View {
             }
             
             Spacer()
+            
+            if item.isJSON {
+                Button(action: onJsonClick) {
+                    Text("JSON")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.accentColor.opacity(0.1))
+                        .foregroundColor(.accentColor)
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovered || isSelected ? 1 : 0)
+                .help("View/Edit JSON")
+            }
             
             // Paste button - visible on hover or selection
             Button(action: onTap) {

@@ -9,7 +9,7 @@ enum ClipboardItemType: String, Codable {
 struct ClipboardItem: Identifiable, Hashable, Codable {
     var id = UUID()
     let type: ClipboardItemType
-    let content: String // For text items, this is the text; for images, this is empty
+    var content: String // For text items, this is the text; for images, this is empty
     let imageData: Data? // PNG data for image items
     let date: Date
     
@@ -46,6 +46,53 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
             NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
         }
         self.date = date
+    }
+    
+    var isJSON: Bool {
+        guard type == .text else { return false }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Try direct JSON parsing
+        if (trimmed.hasPrefix("{") && trimmed.hasSuffix("}")) ||
+           (trimmed.hasPrefix("[") && trimmed.hasSuffix("]")) {
+            if let data = trimmed.data(using: .utf8),
+               (try? JSONSerialization.jsonObject(with: data, options: [])) != nil {
+                return true
+            }
+        }
+        
+        // Try unescaping (e.g. "{\"a\":1}")
+        if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") {
+            // It might be a JSON string that contains serialized JSON
+             if let data = trimmed.data(using: .utf8),
+                let unescaped = try? JSONSerialization.jsonObject(with: data, options: []) as? String {
+                 let unescapedTrimmed = unescaped.trimmingCharacters(in: .whitespacesAndNewlines)
+                 if (unescapedTrimmed.hasPrefix("{") && unescapedTrimmed.hasSuffix("}")) ||
+                    (unescapedTrimmed.hasPrefix("[") && unescapedTrimmed.hasSuffix("]")) {
+                     if let innerData = unescapedTrimmed.data(using: .utf8),
+                        (try? JSONSerialization.jsonObject(with: innerData, options: [])) != nil {
+                         return true
+                     }
+                 }
+             }
+        }
+        
+        // Try assuming it's the raw content of an escaped JSON string (e.g. [{\"a\":1}])
+        // We wrap it in quotes to form a valid JSON string literal and parse that first
+        let wrapped = "\"\(trimmed)\""
+        if let data = wrapped.data(using: .utf8),
+           let unescaped = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? String {
+             let unescapedTrimmed = unescaped.trimmingCharacters(in: .whitespacesAndNewlines)
+             if (unescapedTrimmed.hasPrefix("{") && unescapedTrimmed.hasSuffix("}")) ||
+                (unescapedTrimmed.hasPrefix("[") && unescapedTrimmed.hasSuffix("]")) {
+                 if let innerData = unescapedTrimmed.data(using: .utf8),
+                    (try? JSONSerialization.jsonObject(with: innerData, options: [])) != nil {
+                     return true
+                 }
+             }
+        }
+        
+        return false
     }
 }
 
