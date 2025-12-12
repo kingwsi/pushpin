@@ -106,6 +106,7 @@ struct ContentView: View {
                                         }
                                     }
                                 )
+                                .equatable()
                                 .id(item.id)
                             }
                         }
@@ -226,7 +227,7 @@ struct ContentView: View {
     }
 }
 
-struct ClipboardItemRow: View {
+struct ClipboardItemRow: View, Equatable {
     let item: ClipboardItem
     let isHovered: Bool
     let isSelected: Bool
@@ -236,6 +237,13 @@ struct ClipboardItemRow: View {
     
     @State private var isButtonHovered = false
     
+    // Equatable conformance to reduce unnecessary redraws
+    static func == (lhs: ClipboardItemRow, rhs: ClipboardItemRow) -> Bool {
+        lhs.item.id == rhs.item.id &&
+        lhs.isHovered == rhs.isHovered &&
+        lhs.isSelected == rhs.isSelected
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             // Content based on type
@@ -243,7 +251,7 @@ struct ClipboardItemRow: View {
             case .text:
                 VStack(alignment: .leading, spacing: 6) {
                     Text(item.content)
-                        .lineLimit(2)
+                        .lineLimit(3)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
@@ -257,9 +265,10 @@ struct ClipboardItemRow: View {
                 
             case .image:
                 VStack(alignment: .leading, spacing: 6) {
-                    if let image = item.image {
-                        Image(nsImage: image)
+                    if let thumbnail = item.thumbnail {
+                        Image(nsImage: thumbnail)
                             .resizable()
+                            .interpolation(.medium)
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 80, height: 80)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -267,6 +276,7 @@ struct ClipboardItemRow: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .stroke(Color.primary.opacity(0.1), lineWidth: 1)
                             )
+                            .drawingGroup() // Enable Metal-accelerated rendering
                     } else {
                         Text("[Image]")
                             .font(.system(size: 13, weight: .medium))

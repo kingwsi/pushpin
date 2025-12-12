@@ -11,7 +11,11 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
     let type: ClipboardItemType
     var content: String // For text items, this is the text; for images, this is empty
     let imageData: Data? // PNG data for image items
+    let thumbnailData: Data? // Smaller thumbnail for list display
     let date: Date
+    
+    // Cache for decoded images (not persisted)
+    private static var imageCache = NSCache<NSString, NSImage>()
     
     // Hashable conformance for array filtering/diffing
     func hash(into hasher: inout Hasher) {
@@ -22,10 +26,39 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
         lhs.id == rhs.id
     }
     
-    // Computed property to get NSImage from imageData
+    // Computed property to get NSImage from imageData with caching
     var image: NSImage? {
         guard type == .image, let data = imageData else { return nil }
-        return NSImage(data: data)
+        
+        let cacheKey = id.uuidString as NSString
+        if let cachedImage = Self.imageCache.object(forKey: cacheKey) {
+            return cachedImage
+        }
+        
+        if let image = NSImage(data: data) {
+            Self.imageCache.setObject(image, forKey: cacheKey)
+            return image
+        }
+        return nil
+    }
+    
+    // Thumbnail for list display with caching
+    var thumbnail: NSImage? {
+        guard type == .image else { return nil }
+        
+        let thumbnailCacheKey = "thumb_\(id.uuidString)" as NSString
+        if let cachedThumbnail = Self.imageCache.object(forKey: thumbnailCacheKey) {
+            return cachedThumbnail
+        }
+        
+        // Try to use thumbnailData first (faster)
+        if let thumbData = thumbnailData, let thumb = NSImage(data: thumbData) {
+            Self.imageCache.setObject(thumb, forKey: thumbnailCacheKey)
+            return thumb
+        }
+        
+        // Fallback to full image if no thumbnail (shouldn't happen with new items)
+        return image
     }
     
     // Helper initializer for text items
@@ -34,18 +67,61 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
         self.type = .text
         self.content = text
         self.imageData = nil
+        self.thumbnailData = nil
         self.date = date
     }
     
-    // Helper initializer for image items
+    // Helper initializer for image items with thumbnail generation
     init(image: NSImage, date: Date) {
         self.id = UUID()
         self.type = .image
         self.content = ""
+        
+        // Store full image data
         self.imageData = image.tiffRepresentation.flatMap { 
             NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
         }
+        
+        // Generate and store thumbnail (max 160x160 for retina displays)
+        let thumbnailSize = NSSize(width: 160, height: 160)
+        let thumbnail = Self.createThumbnail(from: image, maxSize: thumbnailSize)
+        self.thumbnailData = thumbnail.tiffRepresentation.flatMap { 
+            NSBitmapImageRep(data: $0)?.representation(using: .png, properties: [:])
+        }
+        
         self.date = date
+    }
+    
+    // Helper method to create thumbnail
+    private static func createThumbnail(from image: NSImage, maxSize: NSSize) -> NSImage {
+        let imageSize = image.size
+        guard imageSize.width > maxSize.width || imageSize.height > maxSize.height else {
+            return image // No need to resize
+        }
+        
+        let widthRatio = maxSize.width / imageSize.width
+        let heightRatio = maxSize.height / imageSize.height
+        let scaleFactor = min(widthRatio, heightRatio)
+        
+        let newSize = NSSize(
+            width: imageSize.width * scaleFactor,
+            height: imageSize.height * scaleFactor
+        )
+        
+        let thumbnail = NSImage(size: newSize)
+        thumbnail.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: newSize),
+                   from: NSRect(origin: .zero, size: imageSize),
+                   operation: .copy,
+                   fraction: 1.0)
+        thumbnail.unlockFocus()
+        
+        return thumbnail
+    }
+    
+    // Static method to clear image cache (for memory management)
+    static func clearImageCache() {
+        imageCache.removeAllObjects()
     }
     
     var isJSON: Bool {
