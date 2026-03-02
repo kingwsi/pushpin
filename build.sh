@@ -25,6 +25,12 @@ if ! command -v xcrun &> /dev/null; then
     exit 1
 fi
 
+# Fallback for macOS 14+ xcbuild error when using Command Line Tools instead of full Xcode
+if [[ "$(xcode-select -p)" == "/Library/Developer/CommandLineTools" ]] && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+    echo "Warning: xcode-select is pointing to CommandLineTools. Using /Applications/Xcode.app to avoid xcbuild errors."
+    export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+
 echo "--- Building Universal Binary ---"
 cd "$PROJECT_DIR"
 swift build -c release --arch arm64 --arch x86_64
