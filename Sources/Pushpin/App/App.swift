@@ -46,11 +46,19 @@ struct PushpinApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var mainWindow: NSWindow?
+    private let accessibilityPromptedKey = "HasPromptedAccessibility"
+    private let accessibilityReminderDateKey = "LastAccessibilityReminderDate"
+    private let accessibilityReminderInterval: TimeInterval = 60 * 60 * 24
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.applicationIconImage = NSImage(named: "AppIcon")
         // Set activation policy first
         NSApp.setActivationPolicy(.accessory)
+        
+        // Check accessibility permission on first launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.checkAccessibilityPermission()
+        }
         
         // Create status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -83,6 +91,41 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 print("Warning: Could not find main window")
             }
         }
+    }
+    
+    private func checkAccessibilityPermission() {
+        // Only check if not already prompted
+        let hasPrompted = UserDefaults.standard.bool(forKey: accessibilityPromptedKey)
+        
+        if !AccessibilityManager.checkAccessibility() {
+            if !hasPrompted {
+                // First time, request with system prompt
+                AccessibilityManager.requestAccessibility()
+                UserDefaults.standard.set(true, forKey: accessibilityPromptedKey)
+                return
+            }
+
+            guard shouldShowAccessibilityReminder() else {
+                return
+            }
+
+            // Subsequent times, show our custom alert only when a window is available.
+            guard let window = mainWindow ?? NSApp.windows.first(where: { $0.canBecomeKey }) else {
+                return
+            }
+
+            AccessibilityManager.showAccessibilityAlert(attachedTo: window) {
+                AccessibilityManager.openAccessibilitySettings()
+            }
+            UserDefaults.standard.set(Date(), forKey: accessibilityReminderDateKey)
+        }
+    }
+
+    private func shouldShowAccessibilityReminder() -> Bool {
+        guard let lastReminderDate = UserDefaults.standard.object(forKey: accessibilityReminderDateKey) as? Date else {
+            return true
+        }
+        return Date().timeIntervalSince(lastReminderDate) >= accessibilityReminderInterval
     }
     
     @objc func toggleWindow() {

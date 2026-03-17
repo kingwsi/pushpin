@@ -6,7 +6,7 @@
 
 ## 📸 预览
 
-![Pushpin Screenshot](screenshot.png)
+![Pushpin Screenshot](docs/images/screenshot.png)
 
 ## ✨ 主要特性
 
@@ -36,6 +36,10 @@
     ```bash
     chmod +x build.sh
     ./build.sh
+    ```
+    或直接运行：
+    ```bash
+    ./scripts/build.sh
     ```
 3.  脚本成功运行后，您会在项目根目录找到 `Pushpin.app`。您可以将其拖到 `/Applications` 文件夹中使用。
 

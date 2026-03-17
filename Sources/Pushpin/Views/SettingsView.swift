@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     @AppStorage("MaxHistoryCount") private var maxHistoryCount = 50
+    @State private var hasAccessibilityPermission = AccessibilityManager.checkAccessibility()
     
     var body: some View {
         VStack(spacing: 20) {
@@ -39,6 +40,46 @@ struct SettingsView: View {
                 
                 Divider()
                 
+                // Accessibility Permission Status
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("辅助功能权限:")
+                            .frame(width: 120, alignment: .leading)
+                        
+                        if hasAccessibilityPermission {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("已授权")
+                                    .foregroundColor(.green)
+                            }
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("未授权")
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        if !hasAccessibilityPermission {
+                            Button("授权") {
+                                AccessibilityManager.openAccessibilitySettings()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    
+                    Text("需要此权限才能自动粘贴内容")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 120)
+                }
+                
+                Divider()
+                
                 // Source Code Link
                 HStack {
                     Text("Source Code:")
@@ -64,7 +105,17 @@ struct SettingsView: View {
             }
         }
         .padding()
-        .frame(width: 450, height: 280)
+        .frame(width: 450, height: 360)
+        .onAppear {
+            refreshAccessibilityPermission()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshAccessibilityPermission()
+        }
+    }
+
+    private func refreshAccessibilityPermission() {
+        hasAccessibilityPermission = AccessibilityManager.checkAccessibility()
     }
 }
 
