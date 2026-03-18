@@ -228,6 +228,7 @@ class ClipboardManager {
                 
                 let newItem = ClipboardItem(image: image, date: Date())
                 history.insert(newItem, at: 0)
+                ToastManager.shared.showToast(message: "已复制图片")
                 
                 // Limit history size based on user setting
                 trimHistoryIfNeeded()
@@ -241,6 +242,7 @@ class ClipboardManager {
                 
                 let newItem = ClipboardItem(text: newString, date: Date())
                 history.insert(newItem, at: 0)
+                ToastManager.shared.showToast(message: "已复制文本")
                 
                 // Limit history size based on user setting
                 trimHistoryIfNeeded()

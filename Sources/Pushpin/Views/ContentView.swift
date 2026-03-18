@@ -59,10 +59,6 @@ struct ContentView: View {
             }
             .ignoresSafeArea(.container, edges: .top)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.primary.opacity(colorScheme == .dark ? 0.22 : 0.12), lineWidth: 1)
-        )
         .onKeyPress(.escape) {
             if showSettings {
                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -98,36 +94,50 @@ struct ContentView: View {
             return .ignored
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                ToolbarIconButton(
-                    systemImage: "trash",
-                    help: "Clear All History",
-                    isDisabled: clipboardManager.history.isEmpty
-                ) {
-                    showClearConfirmation = true
-                }
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                ToolbarIconButton(
-                    systemImage: isPinned ? "pin.fill" : "pin",
-                    help: "Pin Window"
-                ) {
-                    isPinned.toggle()
-                }
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                ToolbarIconButton(systemImage: "gearshape", help: "Settings") {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showSettings.toggle()
+            if !showSettings {
+                ToolbarItem(placement: .primaryAction) {
+                    ToolbarIconButton(
+                        systemImage: "trash",
+                        help: "Clear All History",
+                        isDisabled: clipboardManager.history.isEmpty
+                    ) {
+                        showClearConfirmation = true
                     }
                 }
-            }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    ToolbarIconButton(
+                        systemImage: isPinned ? "pin.fill" : "pin",
+                        help: "Pin Window"
+                    ) {
+                        isPinned.toggle()
+                    }
+                }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    ToolbarIconButton(systemImage: "gearshape", help: "Settings") {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showSettings.toggle()
+                        }
+                    }
+                }
 
-            ToolbarItem(placement: .primaryAction) {
-                ToolbarIconButton(systemImage: "power", help: "Quit (Cmd+Q)") {
-                    NSApp.terminate(nil)
+                ToolbarItem(placement: .primaryAction) {
+                    ToolbarIconButton(systemImage: "power", help: "Quit (Cmd+Q)") {
+                        NSApp.terminate(nil)
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .navigation) {
+                    ToolbarIconButton(systemImage: "chevron.left", help: "Back") {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            showSettings = false
+                        }
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("Settings")
+                        .font(.system(size: 14, weight: .semibold))
                 }
             }
         }
@@ -264,28 +274,6 @@ struct ContentView: View {
         VStack(spacing: 0) {
             Spacer()
                 .frame(height: 12)
-
-            HStack {
-                ToolbarIconButton(systemImage: "chevron.left", help: "Back") {
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        showSettings = false
-                    }
-                }
-
-                Spacer()
-
-                Text("Settings")
-                    .font(.system(size: 14, weight: .semibold))
-
-                Spacer()
-
-                Color.clear
-                    .frame(width: 28, height: 28)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-
-            Divider()
 
             SettingsView(isEmbedded: true)
         }

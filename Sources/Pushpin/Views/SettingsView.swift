@@ -30,84 +30,89 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             
-            VStack(alignment: .leading, spacing: 10) {
-                settingsCard(title: "Appearance", subtitle: "Theme") {
-                    HStack(spacing: 12) {
-                        fieldLabel("Theme")
-                        Picker("Theme", selection: $themeMode) {
-                            ForEach(ThemeMode.allCases) { mode in
-                                Text(mode.title).tag(mode.rawValue)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                    }
-                }
-
-                settingsCard(title: "Keyboard", subtitle: "Global shortcut") {
-                    HStack(spacing: 12) {
-                        fieldLabel("Global Hotkey")
-                        KeyRecorder(hotkeyManager: hotkeyManager)
-                        Spacer(minLength: 0)
-                    }
-                }
-
-                settingsCard(title: "History", subtitle: "Storage limits") {
-                    HStack(spacing: 12) {
-                        fieldLabel("Max History")
-                        Stepper(value: $maxHistoryCount, in: 10...200, step: 10) {
-                            Text("\(maxHistoryCount) items")
-                                .font(.body.monospacedDigit())
-                                .frame(minWidth: 90, alignment: .leading)
-                        }
-                        .onChange(of: maxHistoryCount) { _, _ in
-                            // Trim history if new limit is lower than current count
-                            clipboardManager.trimHistory()
-                        }
-                        Spacer(minLength: 0)
-                    }
-                }
-
-                settingsCard(title: "Permissions", subtitle: "Required for auto-paste") {
-                    VStack(alignment: .leading, spacing: 8) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    settingsCard(title: "Appearance", subtitle: "Theme") {
                         HStack(spacing: 12) {
-                            fieldLabel("辅助功能权限")
-                            accessibilityStatusBadge
-                            Spacer(minLength: 0)
-
-                            if !hasAccessibilityPermission {
-                                Button("授权") {
-                                    AccessibilityManager.openAccessibilitySettings()
+                            fieldLabel("Theme")
+                            Picker("Theme", selection: $themeMode) {
+                                ForEach(ThemeMode.allCases) { mode in
+                                    Text(mode.title).tag(mode.rawValue)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
                             }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
                         }
+                    }
 
-                        Text("需要此权限才能自动粘贴内容")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 126)
+                    settingsCard(title: "Keyboard", subtitle: "Global shortcut") {
+                        HStack(spacing: 12) {
+                            fieldLabel("Global Hotkey")
+                            KeyRecorder(hotkeyManager: hotkeyManager)
+                            Spacer(minLength: 0)
+                        }
+                    }
+
+                    settingsCard(title: "History", subtitle: "Storage limits") {
+                        HStack(spacing: 12) {
+                            fieldLabel("Max History")
+                            Stepper(value: $maxHistoryCount, in: 10...200, step: 10) {
+                                Text("\(maxHistoryCount) items")
+                                    .font(.body.monospacedDigit())
+                                    .frame(minWidth: 90, alignment: .leading)
+                            }
+                            .onChange(of: maxHistoryCount) { _, _ in
+                                // Trim history if new limit is lower than current count
+                                clipboardManager.trimHistory()
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+
+                    settingsCard(title: "Permissions", subtitle: "Required for auto-paste") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 12) {
+                                fieldLabel("辅助功能权限")
+                                accessibilityStatusBadge
+                                Spacer(minLength: 0)
+
+                                if !hasAccessibilityPermission {
+                                    Button("授权") {
+                                        AccessibilityManager.openAccessibilitySettings()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                }
+                            }
+
+                            Text("需要此权限才能自动粘贴内容")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 126)
+                        }
+                    }
+
+                    settingsCard(title: "Project", subtitle: "Open source") {
+                        HStack(spacing: 12) {
+                            fieldLabel("Source Code")
+                            Button(action: {
+                                if let url = URL(string: "https://github.com/kingwsi/pushpin") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }) {
+                                Label("GitHub Repository", systemImage: "arrow.up.forward.square")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
-
-                settingsCard(title: "Project", subtitle: "Open source") {
-                    HStack(spacing: 12) {
-                        fieldLabel("Source Code")
-                        Button(action: {
-                            if let url = URL(string: "https://github.com/kingwsi/pushpin") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }) {
-                            Label("GitHub Repository", systemImage: "arrow.up.forward.square")
-                                .font(.subheadline.weight(.medium))
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.blue)
-                        Spacer(minLength: 0)
-                    }
-                }
+                .padding(.horizontal, 2) // small padding for the scroll indicators
+                .padding(.bottom, 8)
             }
+            .scrollIndicators(.automatic)
             
             if !isEmbedded {
                 HStack {

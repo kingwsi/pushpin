@@ -36,6 +36,7 @@ struct PushpinApp: App {
                 .environment(clipboardManager)
                 .environment(hotkeyManager)
                 .environment(\.pasteManager, pasteManager)
+                .frame(minWidth: 320, minHeight: 400)
                 .onAppear {
                     applyAppAppearance()
                 }
@@ -43,6 +44,7 @@ struct PushpinApp: App {
                     applyAppAppearance()
                 }
         }
+        .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 400, height: 600)
         .commands {
@@ -69,13 +71,19 @@ struct PushpinApp: App {
     }
 
     private func applyAppAppearance() {
+        let appearance: NSAppearance?
         switch ThemeMode(rawValue: themeMode) ?? .system {
         case .system:
-            NSApp.appearance = nil
+            appearance = nil
         case .light:
-            NSApp.appearance = NSAppearance(named: .aqua)
+            appearance = NSAppearance(named: .aqua)
         case .dark:
-            NSApp.appearance = NSAppearance(named: .darkAqua)
+            appearance = NSAppearance(named: .darkAqua)
+        }
+        
+        NSApp.appearance = appearance
+        for window in NSApp.windows {
+            window.appearance = appearance
         }
     }
 }
@@ -103,7 +111,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Pushpin")
+            let config = NSImage.SymbolConfiguration(paletteColors: [.white])
+            let image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Pushpin")?.withSymbolConfiguration(config)
+            image?.isTemplate = false
+            button.image = image
             button.action = #selector(toggleWindow)
             button.target = self
         }
