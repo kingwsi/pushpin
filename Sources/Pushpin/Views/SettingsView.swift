@@ -7,105 +7,126 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     @AppStorage("MaxHistoryCount") private var maxHistoryCount = 50
+    @AppStorage("ThemeMode") private var themeMode = ThemeMode.system.rawValue
     @State private var hasAccessibilityPermission = AccessibilityManager.checkAccessibility()
+    let isEmbedded: Bool
+    let onDone: (() -> Void)?
+
+    init(isEmbedded: Bool = false, onDone: (() -> Void)? = nil) {
+        self.isEmbedded = isEmbedded
+        self.onDone = onDone
+    }
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Settings")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 15) {
-                // Global Hotkey
-                HStack {
-                    Text("Global Hotkey:")
-                        .frame(width: 120, alignment: .leading)
-                    KeyRecorder(hotkeyManager: hotkeyManager)
-                }
-                
-                Divider()
-                
-                // Max History Count
-                HStack {
-                    Text("Max History:")
-                        .frame(width: 120, alignment: .leading)
-                    Stepper(value: $maxHistoryCount, in: 10...200, step: 10) {
-                        Text("\(maxHistoryCount) items")
-                            .frame(minWidth: 80, alignment: .leading)
-                    }
-                    .onChange(of: maxHistoryCount) { _, newValue in
-                        // Trim history if new limit is lower than current count
-                        clipboardManager.trimHistory()
-                    }
-                }
-                
-                Divider()
-                
-                // Accessibility Permission Status
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("辅助功能权限:")
-                            .frame(width: 120, alignment: .leading)
-                        
-                        if hasAccessibilityPermission {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                                Text("已授权")
-                                    .foregroundColor(.green)
-                            }
-                        } else {
-                            HStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
-                                Text("未授权")
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        if !hasAccessibilityPermission {
-                            Button("授权") {
-                                AccessibilityManager.openAccessibilitySettings()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                    
-                    Text("需要此权限才能自动粘贴内容")
+        VStack(spacing: isEmbedded ? 12 : 14) {
+            if !isEmbedded {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Settings")
+                        .font(.title3.weight(.semibold))
+                    Text("Customize shortcuts, history, and permissions.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 120)
+                        .foregroundStyle(.secondary)
                 }
-                
-                Divider()
-                
-                // Source Code Link
-                HStack {
-                    Text("Source Code:")
-                        .frame(width: 120, alignment: .leading)
-                    Button(action: {
-                        if let url = URL(string: "https://github.com/kingwsi/pushpin") {
-                            NSWorkspace.shared.open(url)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            VStack(alignment: .leading, spacing: 10) {
+                settingsCard(title: "Appearance", subtitle: "Theme") {
+                    HStack(spacing: 12) {
+                        fieldLabel("Theme")
+                        Picker("Theme", selection: $themeMode) {
+                            ForEach(ThemeMode.allCases) { mode in
+                                Text(mode.title).tag(mode.rawValue)
+                            }
                         }
-                    }) {
-                        Text("GitHub Repository")
-                            .foregroundColor(.blue)
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
                     }
-                    .buttonStyle(.plain)
-                    Spacer()
+                }
+
+                settingsCard(title: "Keyboard", subtitle: "Global shortcut") {
+                    HStack(spacing: 12) {
+                        fieldLabel("Global Hotkey")
+                        KeyRecorder(hotkeyManager: hotkeyManager)
+                        Spacer(minLength: 0)
+                    }
+                }
+
+                settingsCard(title: "History", subtitle: "Storage limits") {
+                    HStack(spacing: 12) {
+                        fieldLabel("Max History")
+                        Stepper(value: $maxHistoryCount, in: 10...200, step: 10) {
+                            Text("\(maxHistoryCount) items")
+                                .font(.body.monospacedDigit())
+                                .frame(minWidth: 90, alignment: .leading)
+                        }
+                        .onChange(of: maxHistoryCount) { _, _ in
+                            // Trim history if new limit is lower than current count
+                            clipboardManager.trimHistory()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+
+                settingsCard(title: "Permissions", subtitle: "Required for auto-paste") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 12) {
+                            fieldLabel("辅助功能权限")
+                            accessibilityStatusBadge
+                            Spacer(minLength: 0)
+
+                            if !hasAccessibilityPermission {
+                                Button("授权") {
+                                    AccessibilityManager.openAccessibilitySettings()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                        }
+
+                        Text("需要此权限才能自动粘贴内容")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 126)
+                    }
+                }
+
+                settingsCard(title: "Project", subtitle: "Open source") {
+                    HStack(spacing: 12) {
+                        fieldLabel("Source Code")
+                        Button(action: {
+                            if let url = URL(string: "https://github.com/kingwsi/pushpin") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Label("GitHub Repository", systemImage: "arrow.up.forward.square")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                        Spacer(minLength: 0)
+                    }
                 }
             }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
             
-            Button("Done") {
-                dismiss()
+            if !isEmbedded {
+                HStack {
+                    Spacer()
+                    Button("Done") {
+                        if let onDone {
+                            onDone()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                }
             }
         }
-        .padding()
-        .frame(width: 450, height: 360)
+        .padding(isEmbedded ? 10 : 16)
+        .frame(width: isEmbedded ? nil : 450, height: isEmbedded ? nil : 360)
+        .frame(maxWidth: isEmbedded ? .infinity : nil, maxHeight: isEmbedded ? .infinity : nil, alignment: .topLeading)
         .onAppear {
             refreshAccessibilityPermission()
         }
@@ -116,6 +137,54 @@ struct SettingsView: View {
 
     private func refreshAccessibilityPermission() {
         hasAccessibilityPermission = AccessibilityManager.checkAccessibility()
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .frame(width: 114, alignment: .leading)
+    }
+
+    private var accessibilityStatusBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: hasAccessibilityPermission ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(hasAccessibilityPermission ? .green : .orange)
+            Text(hasAccessibilityPermission ? "已授权" : "未授权")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(hasAccessibilityPermission ? .green : .orange)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(
+            Capsule(style: .continuous)
+                .fill((hasAccessibilityPermission ? Color.green : Color.orange).opacity(0.12))
+        )
+    }
+
+    @ViewBuilder
+    private func settingsCard<Content: View>(title: String, subtitle: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(NSColor.controlBackgroundColor).opacity(isEmbedded ? 0.65 : 0.9))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+        )
     }
 }
 
@@ -135,6 +204,9 @@ struct KeyRecorder: View {
             Text(displayText)
                 .frame(minWidth: 100)
         }
+        .buttonStyle(.bordered)
+        .tint(isRecording ? .accentColor : .primary.opacity(0.12))
+        .controlSize(.small)
     }
     
     private var displayText: String {

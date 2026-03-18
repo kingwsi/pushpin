@@ -174,6 +174,9 @@ struct ClipboardItem: Identifiable, Hashable, Codable {
 
 @Observable
 class ClipboardManager {
+    private static let legacyHistoryKey = "ClipboardHistory"
+    private static let historyFileName = "clipboard_history.json"
+
     var history: [ClipboardItem] = [] {
         didSet {
             saveHistory()
@@ -181,6 +184,7 @@ class ClipboardManager {
     }
     private var lastChangeCount: Int
     private var timer: Timer?
+    private let fileManager = FileManager.default
     
     // Maximum number of items to keep in history (configurable)
     var maxHistoryCount: Int {
@@ -265,15 +269,60 @@ class ClipboardManager {
     }
     
     private func saveHistory() {
-        if let encoded = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(encoded, forKey: "ClipboardHistory")
+        guard let encoded = try? JSONEncoder().encode(history) else { return }
+
+        do {
+            let storageURL = try historyFileURL()
+            try encoded.write(to: storageURL, options: .atomic)
+        } catch {
+            print("Failed to save clipboard history: \(error)")
         }
     }
     
     private func loadHistory() {
-        if let data = UserDefaults.standard.data(forKey: "ClipboardHistory"),
+        if loadHistoryFromFile() {
+            return
+        }
+
+        // One-time migration from legacy UserDefaults storage.
+        let defaults = UserDefaults.standard
+        if let data = defaults.data(forKey: Self.legacyHistoryKey),
            let decoded = try? JSONDecoder().decode([ClipboardItem].self, from: data) {
             history = decoded
+            defaults.removeObject(forKey: Self.legacyHistoryKey)
+        } else {
+            // Clear oversized/invalid legacy value to avoid repeated platform warnings.
+            defaults.removeObject(forKey: Self.legacyHistoryKey)
         }
+    }
+
+    private func loadHistoryFromFile() -> Bool {
+        do {
+            let storageURL = try historyFileURL()
+            guard fileManager.fileExists(atPath: storageURL.path) else { return false }
+            let data = try Data(contentsOf: storageURL)
+            let decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+            history = decoded
+            return true
+        } catch {
+            print("Failed to load clipboard history from file: \(error)")
+            return false
+        }
+    }
+
+    private func historyFileURL() throws -> URL {
+        let appSupportURL = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let appDirectory = appSupportURL.appendingPathComponent("Pushpin", isDirectory: true)
+        try fileManager.createDirectory(at: appDirectory, withIntermediateDirectories: true)
+        return appDirectory.appendingPathComponent(Self.historyFileName)
+    }
+
+    deinit {
+        timer?.invalidate()
     }
 }

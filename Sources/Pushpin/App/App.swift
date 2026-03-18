@@ -1,11 +1,28 @@
 import SwiftUI
 import AppKit
 
+enum ThemeMode: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+}
+
 @main
 struct PushpinApp: App {
     @State private var clipboardManager = ClipboardManager()
     @State private var hotkeyManager = HotkeyManager()
     @State private var pasteManager = PasteManager()
+    @AppStorage("ThemeMode") private var themeMode = ThemeMode.system.rawValue
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     init() {
@@ -19,6 +36,12 @@ struct PushpinApp: App {
                 .environment(clipboardManager)
                 .environment(hotkeyManager)
                 .environment(\.pasteManager, pasteManager)
+                .onAppear {
+                    applyAppAppearance()
+                }
+                .onChange(of: themeMode) { _, _ in
+                    applyAppAppearance()
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 400, height: 600)
@@ -34,6 +57,9 @@ struct PushpinApp: App {
                     set: { clipboardManager.history[index].content = $0 }
                 ))
                 .navigationTitle("JSON Editor")
+                .onAppear {
+                    applyAppAppearance()
+                }
             } else {
                 ContentUnavailableView("Item Not Found", systemImage: "questionmark.folder")
             }
@@ -41,11 +67,24 @@ struct PushpinApp: App {
         .environment(clipboardManager)
         .defaultSize(width: 600, height: 500)
     }
+
+    private func applyAppAppearance() {
+        switch ThemeMode(rawValue: themeMode) ?? .system {
+        case .system:
+            NSApp.appearance = nil
+        case .light:
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var mainWindow: NSWindow?
+    private(set) var lastExternalActiveApp: NSRunningApplication?
+    private var workspaceObserver: NSObjectProtocol?
     private let accessibilityPromptedKey = "HasPromptedAccessibility"
     private let accessibilityReminderDateKey = "LastAccessibilityReminderDate"
     private let accessibilityReminderInterval: TimeInterval = 60 * 60 * 24
@@ -67,6 +106,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Pushpin")
             button.action = #selector(toggleWindow)
             button.target = self
+        }
+
+        workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard
+                let self,
+                let runningApp = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            else { return }
+            if runningApp.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+                self.lastExternalActiveApp = runningApp
+                print("[App] observer captured: \(runningApp.bundleIdentifier ?? "pid=\(runningApp.processIdentifier)")")
+            }
         }
         
         // Store window reference and prevent it from being released
@@ -161,6 +215,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.orderOut(nil)
         } else {
             print("Showing window")
+            captureLastExternalActiveApp()
             
             // Get mouse location
             let mouseLocation = NSEvent.mouseLocation
@@ -208,10 +263,86 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
     }
+
+    func preferredPasteTargetApplication() -> NSRunningApplication? {
+        if let app = lastExternalActiveApp, !app.isTerminated {
+            return app
+        }
+        // For accessory apps, menuBarOwningApplication is the "real" frontmost app
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+        if let menuBarApp = NSWorkspace.shared.menuBarOwningApplication,
+           menuBarApp.processIdentifier != selfPID,
+           !menuBarApp.isTerminated {
+            print("[App] preferredTarget via menuBar: \(menuBarApp.bundleIdentifier ?? "unknown")")
+            lastExternalActiveApp = menuBarApp
+            return menuBarApp
+        }
+        if let fallback = detectFrontmostAppByWindowList() {
+            print("[App] preferredTarget via CGWindowList: \(fallback.bundleIdentifier ?? "unknown")")
+            lastExternalActiveApp = fallback
+            return fallback
+        }
+        print("[App] preferredTarget: all methods failed")
+        return nil
+    }
+
+    func captureLastExternalActiveApp() {
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           frontmost.processIdentifier != selfPID {
+            lastExternalActiveApp = frontmost
+            print("[App] captured target via NSWorkspace: \(frontmost.bundleIdentifier ?? "unknown")")
+            return
+        }
+
+        // For accessory apps, menuBarOwningApplication is more reliable
+        if let menuBarApp = NSWorkspace.shared.menuBarOwningApplication,
+           menuBarApp.processIdentifier != selfPID,
+           !menuBarApp.isTerminated {
+            lastExternalActiveApp = menuBarApp
+            print("[App] captured target via menuBar: \(menuBarApp.bundleIdentifier ?? "unknown")")
+            return
+        }
+
+        if let fallback = detectFrontmostAppByWindowList() {
+            lastExternalActiveApp = fallback
+            print("[App] captured target via CGWindowList: \(fallback.bundleIdentifier ?? "unknown")")
+            return
+        }
+
+        print("[App] captureLastExternalActiveApp: all methods failed")
+    }
+
+    private func detectFrontmostAppByWindowList() -> NSRunningApplication? {
+        let selfPID = ProcessInfo.processInfo.processIdentifier
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard
+            let windowInfo = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+        else {
+            return nil
+        }
+
+        for info in windowInfo {
+            let layer = info[kCGWindowLayer as String] as? Int ?? 0
+            if layer != 0 { continue }
+            guard let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t else { continue }
+            if ownerPID == selfPID { continue }
+            if let app = NSRunningApplication(processIdentifier: ownerPID), !app.isTerminated {
+                return app
+            }
+        }
+        return nil
+    }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        print("applicationShouldTerminateAfterLastWindowClosed called")
         return false
+    }
+
+    deinit {
+        if let observer = workspaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
     }
 }
 

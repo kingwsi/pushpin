@@ -98,6 +98,12 @@ class HotkeyManager {
         if window.isVisible {
             window.orderOut(nil)
         } else {
+            // Capture the frontmost app BEFORE we activate Pushpin's window,
+            // so PasteManager knows which app to paste into later.
+            if let appDelegate = NSApp.delegate as? AppDelegate {
+                appDelegate.captureLastExternalActiveApp()
+            }
+
             // Get mouse location
             let mouseLocation = NSEvent.mouseLocation
             
