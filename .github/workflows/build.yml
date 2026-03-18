@@ -3,9 +3,14 @@ name: Build macOS App
 on:
   push:
     branches: [ "main", "master" ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -31,3 +36,10 @@ jobs:
         name: Pushpin-macOS-universal
         path: Pushpin-macOS-universal.tar.gz
         retention-days: 7
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: Pushpin-macOS-universal.tar.gz
+        generate_release_notes: true
