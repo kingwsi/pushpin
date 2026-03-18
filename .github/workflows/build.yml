@@ -1,0 +1,38 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: "5.9"
+
+    - name: Build and Bundle App
+      run: |
+        chmod +x build.sh
+        ./build.sh
+
+    - name: Compress Application
+      run: |
+        # Use tar to compress the app bundle while preserving macOS file attributes
+        tar -czf Pushpin-macOS-universal.tar.gz Pushpin.app
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Pushpin-macOS-universal
+        path: Pushpin-macOS-universal.tar.gz
+        retention-days: 7
