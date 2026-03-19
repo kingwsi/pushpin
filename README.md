@@ -6,7 +6,7 @@
 
 ## 📸 预览
 
-![Pushpin Screenshot](docs/images/screenshot.png)
+![Pushpin Screenshot](docs/images/screenshot.heif)
 
 ## ✨ 主要特性
 
