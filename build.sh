@@ -9,6 +9,17 @@ set -e
 
 # --- Configuration ---
 APP_NAME="Pushpin"
+APP_VERSION=${APP_VERSION:-"1.1.0"}
+BUILD_NUMBER=${BUILD_NUMBER:-"1"}
+
+# Auto-detect version if running in GitHub Actions with a tag (e.g., v1.2.0)
+if [[ -n "$GITHUB_REF_NAME" && "$GITHUB_REF_NAME" == v* ]]; then
+    # Strip the leading 'v'
+    APP_VERSION="${GITHUB_REF_NAME#v}"
+    # Use GitHub Action's run number as the build number
+    BUILD_NUMBER="${GITHUB_RUN_NUMBER:-1}"
+fi
+
 # Use the directory of the script as the project root
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 BUILD_DIR="$PROJECT_DIR/.build/apple/Products/Release"
@@ -61,9 +72,9 @@ cat > "$INFO_PLIST_PATH" << EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>2</string>
+    <string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
