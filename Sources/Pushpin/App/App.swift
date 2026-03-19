@@ -32,17 +32,19 @@ struct PushpinApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(clipboardManager)
-                .environment(hotkeyManager)
-                .environment(\.pasteManager, pasteManager)
-                .frame(minWidth: 320, minHeight: 400)
-                .onAppear {
-                    applyAppAppearance()
-                }
-                .onChange(of: themeMode) { _, _ in
-                    applyAppAppearance()
-                }
+            ThemeProvider {
+                ContentView()
+                    .environment(clipboardManager)
+                    .environment(hotkeyManager)
+                    .environment(\.pasteManager, pasteManager)
+                    .frame(minWidth: 320, minHeight: 400)
+                    .onAppear {
+                        applyAppAppearance()
+                    }
+                    .onChange(of: themeMode) { _, _ in
+                        applyAppAppearance()
+                    }
+            }
         }
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
@@ -54,13 +56,15 @@ struct PushpinApp: App {
         WindowGroup("JSON Editor", for: UUID.self) { $itemId in
             if let id = itemId,
                let index = clipboardManager.history.firstIndex(where: { $0.id == id }) {
-                JsonEditorView(text: Binding(
-                    get: { clipboardManager.history[index].content },
-                    set: { clipboardManager.history[index].content = $0 }
-                ))
-                .navigationTitle("JSON Editor")
-                .onAppear {
-                    applyAppAppearance()
+                ThemeProvider {
+                    JsonEditorView(text: Binding(
+                        get: { clipboardManager.history[index].content },
+                        set: { clipboardManager.history[index].content = $0 }
+                    ))
+                    .navigationTitle("JSON Editor")
+                    .onAppear {
+                        applyAppAppearance()
+                    }
                 }
             } else {
                 ContentUnavailableView("Item Not Found", systemImage: "questionmark.folder")
@@ -374,4 +378,23 @@ extension PushpinApp {
     // We can't easily add onReceive to WindowGroup in the same way as a View, 
     // but we can add it to the ContentView or use an adapter.
     // Actually, let's add it to ContentView for simplicity, or wrap ContentView.
+}
+
+struct ThemeProvider<Content: View>: View {
+    @AppStorage("ThemeMode") private var themeMode = ThemeMode.system.rawValue
+    @Environment(\.colorScheme) private var systemColorScheme
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .environment(\.colorScheme, activeScheme)
+    }
+
+    private var activeScheme: ColorScheme {
+        switch ThemeMode(rawValue: themeMode) ?? .system {
+        case .system: return systemColorScheme
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
 }

@@ -92,20 +92,30 @@ struct SettingsView: View {
                         }
                     }
 
-                    settingsCard(title: "Project", subtitle: "Open source") {
-                        HStack(spacing: 12) {
-                            fieldLabel("Source Code")
-                            Button(action: {
-                                if let url = URL(string: "https://github.com/kingwsi/pushpin") {
-                                    NSWorkspace.shared.open(url)
-                                }
-                            }) {
-                                Label("GitHub Repository", systemImage: "arrow.up.forward.square")
-                                    .font(.subheadline.weight(.medium))
+                    settingsCard(title: "About", subtitle: "Version & Open source") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 12) {
+                                fieldLabel("Version")
+                                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0") build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
                             }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.blue)
-                            Spacer(minLength: 0)
+
+                            HStack(spacing: 12) {
+                                fieldLabel("Source Code")
+                                Button(action: {
+                                    if let url = URL(string: "https://github.com/kingwsi/pushpin") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }) {
+                                    Label("GitHub Repository", systemImage: "arrow.up.forward.square")
+                                        .font(.subheadline.weight(.medium))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(.blue)
+                                Spacer(minLength: 0)
+                            }
                         }
                     }
                 }
